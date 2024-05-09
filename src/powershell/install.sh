@@ -37,7 +37,7 @@ find_version_from_git_tags() {
     local repository=$2
     local prefix=${3:-"tags/v"}
     local separator=${4:-"."}
-    local last_part_optional=${5:-"false"}    
+    local last_part_optional=${5:-"false"}
     if [ "$(echo "${requested_version}" | grep -o "." | wc -l)" != "2" ]; then
         local escaped_separator=${separator//./\\.}
         local last_part
@@ -93,7 +93,7 @@ install_using_apt() {
     if [ "${POWERSHELL_VERSION}" = "latest" ] || [ "${POWERSHELL_VERSION}" = "lts" ] || [ "${POWERSHELL_VERSION}" = "stable" ]; then
         # Empty, meaning grab whatever "latest" is in apt repo
         version_suffix=""
-    else    
+    else
         version_suffix="=$(apt-cache madison powershell | awk -F"|" '{print $2}' | sed -e 's/^[ \t]*//' | grep -E -m 1 "^(${POWERSHELL_VERSION})(\.|$|\+.*|-.*)")"
 
         if [ -z ${version_suffix} ] || [ ${version_suffix} = "=" ]; then
@@ -140,7 +140,7 @@ find_prev_version_from_git_tags() {
             ((breakfix=breakfix-1))
             if [ "${breakfix}" = "0" ] && [ "${last_part_optional}" = "true" ]; then
                 declare -g ${variable_name}="${major}.${minor}"
-            else 
+            else
                 declare -g ${variable_name}="${major}.${minor}.${breakfix}"
             fi
         fi
@@ -153,21 +153,21 @@ get_previous_version() {
     local repo_url=$2
     local variable_name=$3
     prev_version=${!variable_name}
-    
+
     output=$(curl -s "$repo_url");
     check_packages jq
     message=$(echo "$output" | jq -r '.message')
-    
+
     if [[ $message == "API rate limit exceeded"* ]]; then
         echo -e "\nAn attempt to find latest version using GitHub Api Failed... \nReason: ${message}"
         echo -e "\nAttempting to find latest version using GitHub tags."
         find_prev_version_from_git_tags prev_version "$url" "tags/v"
         declare -g ${variable_name}="${prev_version}"
-    else 
+    else
         echo -e "\nAttempting to find latest version using GitHub Api."
         version=$(echo "$output" | jq -r '.tag_name')
         declare -g ${variable_name}="${version#v}"
-    fi  
+    fi
     echo "${variable_name}=${!variable_name}"
 }
 
@@ -207,7 +207,7 @@ install_using_github() {
     pwsh_url="https://github.com/PowerShell/PowerShell"
     find_version_from_git_tags POWERSHELL_VERSION $pwsh_url
     install_pwsh "${POWERSHELL_VERSION}"
-    if grep -q "Not Found" "${powershell_filename}"; then 
+    if grep -q "Not Found" "${powershell_filename}"; then
         install_prev_pwsh $pwsh_url
     fi
 
@@ -242,14 +242,20 @@ if [ "${use_github}" = "true" ]; then
     install_using_github
 fi
 
-# If PowerShell modules are requested, loop through and install 
+# If PowerShell modules are requested, loop through and install
 if [ ${#POWERSHELL_MODULES[@]} -gt 0 ]; then
     echo "Installing PowerShell Modules: ${POWERSHELL_MODULES}"
     modules=(`echo ${POWERSHELL_MODULES} | tr ',' ' '`)
     for i in "${modules[@]}"
     do
-        echo "Installing ${i}"
-        pwsh -Command "Install-Module -Name ${i} -AllowClobber -Force -Scope AllUsers" || continue
+        if [[ $i =~ ":" ]]; then
+            module_info=(`echo ${i} | tr ':' ' '`)
+            echo "Installing ${i}"
+            pwsh -Command "Install-Module -Name ${module_info[0]} -RequiredVersion ${module_info[1]} -AllowClobber -Force -Scope AllUsers" || continue
+        else
+            echo "Installing ${i}"
+            pwsh -Command "Install-Module -Name ${i} -AllowClobber -Force -Scope AllUsers" || continue
+        fi
     done
 fi
 
