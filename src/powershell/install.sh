@@ -250,7 +250,7 @@ if [ ${#POWERSHELL_MODULES[@]} -gt 0 ]; then
     do
         if [[ $i =~ ":" ]]; then
             module_info=(`echo ${i} | tr ':' ' '`)
-            echo "Installing ${i}"
+            echo "Installing ${module_info[0]} version ${module_info[1]}"
             pwsh -Command "Install-Module -Name ${module_info[0]} -RequiredVersion ${module_info[1]} -AllowClobber -Force -Scope AllUsers" || continue
         else
             echo "Installing ${i}"
